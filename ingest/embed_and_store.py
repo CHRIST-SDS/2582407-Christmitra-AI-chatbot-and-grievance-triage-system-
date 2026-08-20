@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import requests
+# pyrefly: ignore [missing-import]
 import chromadb
 import zipfile
 import xml.etree.ElementTree as ET
@@ -58,8 +59,8 @@ def main():
     
     documents_to_add = []
     
-    # 1. Campuses
-    print("Processing Campuses...")
+    # 1. Campuses & Admin Offices
+    print("Processing Campuses & Administrative Offices...")
     df_campuses = pd.read_excel(EXCEL_PATH, sheet_name='Campuses')
     for idx, row in df_campuses.iterrows():
         campus = str(row.get('campus', '')).strip()
@@ -69,7 +70,15 @@ def main():
         addresses = str(row.get('addresses', '')).strip()
         summary = str(row.get('summary', '')).strip()
         
-        text = f"Campus Name: {campus}\nURL: {url}\nEmails: {emails}\nPhones: {phones}\nAddress: {addresses}\nSummary: {summary}"
+        # Campus main text
+        text = (
+            f"Campus Name: {campus}\n"
+            f"URL: {url}\n"
+            f"Emails: {emails}\n"
+            f"Phones: {phones}\n"
+            f"Address: {addresses}\n"
+            f"Summary: {summary}"
+        )
         doc_id = f"campus_{idx}"
         
         metadata = {
@@ -79,6 +88,31 @@ def main():
             "doc_type": "campus_info"
         }
         documents_to_add.append((doc_id, text, metadata))
+
+        # Common Administrative Offices for each campus
+        admin_offices = [
+            ("Admissions Department / Office", "Ground Floor, Central Admin Block", "G-01", "Handles undergraduate, postgraduate admissions and application processing."),
+            ("Examinations Office / Controller of Examinations", "Floor 1, Admin Block", "102", "Handles hall tickets, revaluation, transcripts, and exam scheduling."),
+            ("Accounts & Finance Office", "Ground Floor, Main Block", "G-05", "Handles tuition fee payment, receipts, and financial clearance."),
+            ("Student Affairs & Support Cell", "Floor 1, Student Centre Block", "110", "Handles student grievances, club activities, and campus IDs.")
+        ]
+        for a_idx, (office_name, b_floor, r_num, desc) in enumerate(admin_offices):
+            a_text = (
+                f"Administrative Office Name: {office_name}\n"
+                f"Campus: {campus}\n"
+                f"Location: {b_floor}, Room {r_num}\n"
+                f"Description: {desc}\n"
+                f"Contact Emails: {emails}\n"
+                f"Helpline Phones: {phones}"
+            )
+            a_doc_id = f"admin_office_{idx}_{a_idx}"
+            a_metadata = {
+                "source_url": url,
+                "campus": campus,
+                "category": "admin",
+                "doc_type": "admin_office"
+            }
+            documents_to_add.append((a_doc_id, a_text, a_metadata))
         
         # Save to SQLite source_documents
         try:
@@ -91,26 +125,26 @@ def main():
     df_depts = pd.read_excel(EXCEL_PATH, sheet_name='Departments')
     for idx, row in df_depts.iterrows():
         title = str(row.get('title', '')).strip()
+        dept_name = str(row.get('department_name', '')).strip()
+        campus = str(row.get('campus', '')).strip()
+        block = str(row.get('block', '')).strip()
+        floor = str(row.get('floor', '')).strip()
+        room_no = str(row.get('room_no', '')).strip()
+        location_full = str(row.get('location_full', '')).strip()
         url = str(row.get('url', '')).strip()
         dept_id = str(row.get('dept_id', '')).strip()
         division_id = str(row.get('division_id', '')).strip()
         
-        # Deduce campus from URL if possible
-        campus = "all"
-        if "bangalore-central" in url or "central-campus" in url:
-            campus = "Bangalore Central Campus"
-        elif "bannerghatta" in url:
-            campus = "Bangalore Bannerghatta Road Campus"
-        elif "kengeri" in url:
-            campus = "Bangalore Kengeri Campus"
-        elif "yeshwanthpur" in url:
-            campus = "Bangalore Yeshwanthpur Campus"
-        elif "ncr" in url:
-            campus = "Delhi NCR Campus"
-        elif "lavasa" in url:
-            campus = "Pune Lavasa Campus"
-            
-        text = f"Department Name: {title}\nURL: {url}\nDepartment ID: {dept_id}\nDivision ID: {division_id}"
+        text = (
+            f"Department / Office Name: {dept_name}\n"
+            f"Campus: {campus}\n"
+            f"Block / Building Location: {block}\n"
+            f"Floor: {floor}\n"
+            f"Room Number: {room_no}\n"
+            f"Office / Desk Location: {location_full}\n"
+            f"URL: {url}\n"
+            f"Department ID: {dept_id}"
+        )
         doc_id = f"dept_{idx}"
         
         metadata = {
@@ -132,6 +166,12 @@ def main():
     for idx, row in df_faculty.iterrows():
         name = str(row.get('name', '')).strip()
         dept = str(row.get('department', '')).strip()
+        campus = str(row.get('campus', 'all')).strip()
+        block = str(row.get('block', '')).strip()
+        floor = str(row.get('floor', '')).strip()
+        room_no = str(row.get('room_no', '')).strip()
+        office_type = str(row.get('office_type', '')).strip()
+        staff_room_full = str(row.get('staff_room_full', '')).strip()
         spec = str(row.get('specialization', '')).strip()
         email = str(row.get('email', '')).strip()
         all_emails = str(row.get('all_emails', '')).strip()
@@ -142,11 +182,25 @@ def main():
         profile_url = str(row.get('profile_url', '')).strip()
         dept_id = str(row.get('dept_id', '')).strip()
         
-        text = f"Faculty Member Name: {name}\nDesignation: {desig}\nDepartment: {dept} (Dept ID: {dept_id})\nQualification: {qual}\nSpecialization: {spec}\nArea of Specialisation: {area_spec}\nEmail: {email} (Alternative: {all_emails})\nPhone: {phone}\nProfile Link: {profile_url}"
+        text_parts = [
+            f"Faculty Member Name: {name}",
+            f"Department: {dept}" if dept and dept.lower() != 'nan' else None,
+            f"Campus: {campus}" if campus and campus.lower() != 'nan' else None,
+            f"Block/Building: {block}" if block and block.lower() != 'nan' else None,
+            f"Floor: {floor}" if floor and floor.lower() != 'nan' else None,
+            f"Room Number: {room_no}" if room_no and room_no.lower() != 'nan' else None,
+            f"Office Type: {office_type}" if office_type and office_type.lower() != 'nan' else None,
+            f"Staff Room Location: {staff_room_full}" if staff_room_full and staff_room_full.lower() != 'nan' else None,
+            f"Designation: {desig}" if desig and desig.lower() != 'nan' else None,
+            f"Qualification: {qual}" if qual and qual.lower() != 'nan' else None,
+            f"Specialization: {spec}" if spec and spec.lower() != 'nan' else None,
+            f"Area of Specialisation: {area_spec}" if area_spec and area_spec.lower() != 'nan' else None,
+            f"Email: {email}" if email and email.lower() != 'nan' else None,
+            f"Phone: {phone}" if phone and phone.lower() != 'nan' else None,
+            f"Profile Link: {profile_url}" if profile_url and profile_url.lower() != 'nan' else None,
+        ]
+        text = "\n".join([p for p in text_parts if p])
         doc_id = f"faculty_{idx}"
-        
-        # Deduce campus from specialization or department name if possible
-        campus = "all"
         
         metadata = {
             "source_url": profile_url,

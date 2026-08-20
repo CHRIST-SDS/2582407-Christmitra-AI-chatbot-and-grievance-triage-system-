@@ -1,5 +1,6 @@
 import os
 import requests
+# pyrefly: ignore [missing-import]
 import chromadb
 import sqlite3
 import json
@@ -31,7 +32,7 @@ def get_query_embedding(query: str):
         print(f"Embedding error: {e}")
         return None
 
-def vector_search(query: str, campus: str = None, top_k: int = 4):
+def vector_search(query: str, campus: str = None, top_k: int = 6):
     if not collection:
         return []
     
@@ -40,7 +41,7 @@ def vector_search(query: str, campus: str = None, top_k: int = 4):
         return []
     
     where = None
-    if campus and campus != "all":
+    if campus and campus.lower() != "all":
         # Search for exact campus or "all" campus documents
         where = {"$or": [{"campus": campus}, {"campus": "all"}]}
         
@@ -219,10 +220,12 @@ def handle_user_message(query: str, session_id: str, campus: str = None) -> dict
                 sources.append(c["metadata"]["source_url"])
                 
         system_prompt = (
-            "You are ChristMitra, a helpful, highly accurate assistant for Christ University students.\n"
-            "Answer the query using ONLY the provided document context below.\n"
-            "If the answer is not in the context, say 'I don't have that information. Please contact the relevant office.' and do not invent details or assume anything.\n"
-            "Never invent policy, rules, contact emails, fees, or deadlines.\n\n"
+            "You are ChristMitra, the official campus assistant for Christ University.\n"
+            "Answer the student's question clearly using ONLY the facts present in the provided document context below.\n"
+            "- For department location questions (e.g., 'where is admission department in Kengeri campus'), state the building/block, floor, room number, and office details clearly.\n"
+            "- For faculty/staff questions, state their full name, department, campus, block/building, floor, and staff room location from the matching context.\n"
+            "- If the context contains matching office or department information, present the building/block, floor, and room number.\n"
+            "- If no matching location, department, or person exists in the context at all, reply: 'I don't have that information. Please contact the relevant office.'\n\n"
             f"=== Context ===\n{context_str}\n"
         )
         

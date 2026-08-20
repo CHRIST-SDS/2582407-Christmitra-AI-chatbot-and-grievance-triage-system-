@@ -23,9 +23,9 @@ def classify_intent(query: str) -> str:
     system_prompt = (
         "You are an intent classification assistant for a university chatbot.\n"
         "Classify the user's query into exactly one of these categories:\n"
-        "- informational: the user is asking a general question, looking for contact details, faculty info, department details, policies, etc.\n"
+        "- informational: the user is asking a question, asking who someone is (e.g. 'who is dalvin', 'who is professor X'), looking for contact details, faculty info, staff room/building locations, department details, or policies.\n"
         "- grievance: the user is complaining, reporting an issue, submitting a grievance, or asking how to complain.\n"
-        "- unclear: greeting, test message, gibberish, or unclear intent.\n\n"
+        "- unclear: pure single-word greetings ('hello', 'hi'), test messages, or complete gibberish.\n\n"
         "Reply with ONLY the category name in lowercase (informational / grievance / unclear). Do not explain or add punctuation."
     )
     

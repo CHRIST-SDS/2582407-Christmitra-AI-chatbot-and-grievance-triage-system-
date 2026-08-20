@@ -6,8 +6,7 @@ ChristMitra is a fully-local, privacy-respecting, and intelligent campus assista
 
 ## 🖥️ UI Screenshot
 
-![ChristMitra UI Mockup](docs/images/christmitra_ui.png)
-
+![alt text](image-1.png)
 ---
 
 ## ✨ Features
